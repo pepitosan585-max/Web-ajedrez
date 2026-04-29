@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Auladjaque</title>
+
+<style>
+body { font-family: Arial; margin:0; background:#f2f2f2; }
+
+header { text-align:center; padding:20px; }
+
+/* TABLA */
+table { width:100%; background:white; border-collapse:collapse; }
+th, td { border:1px solid #ddd; padding:8px; text-align:center; }
+th { background:#222; color:white; }
+
+/* MATRIZ */
+.rotate {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size:11px;
+}
+
+.win { background:#4caf50; color:white; }
+.lose { background:#f44336; color:white; }
+.draw { background:#ffc107; }
+.self { background:#2e7d32; color:white; }
+
+.edit-only { display:none; }
+
+.tabs { display:flex; justify-content:center; background:#333; }
+.tabs button { color:white; padding:15px; background:none; border:none; cursor:pointer; }
+.tab-content { display:none; padding:20px; }
+.tab-content.active { display:block; }
+
+input, select, button { margin:5px; padding:6px; }
+</style>
+</head>
+
+<body>
+
+<header>
+<h2>Clasificación Liga</h2>
+</header>
+
+<div style="text-align:center;">
+<button onclick="loginEdit()">🔒 Editor</button>
+<span id="editorStatus">Modo lectura</span>
+</div>
+
+<div class="tabs">
+<button onclick="openTab(event,'jugadores')">Jugadores</button>
+<button onclick="openTab(event,'partidas')">Partidas</button>
+<button onclick="openTab(event,'clasificacion')">Clasificación</button>
+</div>
+
+<!-- JUGADORES -->
+<div id="jugadores" class="tab-content active">
+<div class="edit-only">
+<input id="nombre" placeholder="Nombre">
+<input id="apellido" placeholder="Apellido">
+<input id="curso" placeholder="Curso">
+<button onclick="addPlayer()">Añadir</button>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>Nombre</th>
+<th>Apellido</th>
+<th>Curso</th>
+<th class="edit-only">Acciones</th>
+</tr>
+</thead>
+<tbody id="playersTable"></tbody>
+</table>
+</div>
+
+<!-- PARTIDAS -->
+<div id="partidas" class="tab-content">
+<div class="edit-only">
+<select id="jugador1"></select>
+<select id="jugador2"></select>
+<select id="ganador"></select>
+<button onclick="addMatch()">Añadir partida</button>
+</div>
+
+<table>
+<thead><tr><th>Jugador 1</th><th>Jugador 2</th><th>Resultado</th></tr></thead>
+<tbody id="matchesTable"></tbody>
+</table>
+</div>
+
+<!-- CLASIFICACION -->
+<div id="clasificacion" class="tab-content">
+<table>
+<tbody id="rankingTable"></tbody>
+</table>
+</div>
+
+<script>
+const PASSWORD = 'admin123';
+let editMode = false;
+
+let players = JSON.parse(localStorage.getItem('players')) || [];
+let matches = JSON.parse(localStorage.getItem('matches')) || [];
+
+function saveData(){
+  localStorage.setItem('players', JSON.stringify(players));
+  localStorage.setItem('matches', JSON.stringify(matches));
+}
+
+/* 🔥 MOSTRAR / OCULTAR BOTONES */
+function updateEditModeUI(){
+  document.querySelectorAll('.edit-only').forEach(el=>{
+    if(editMode){
+      if(el.tagName==='TD' || el.tagName==='TH'){
+        el.style.display='table-cell';
+      } else {
+        el.style.display='inline-block';
+      }
+    } else {
+      el.style.display='none';
+    }
+  });
+}
+
+function loginEdit(){
+  const p = prompt('Contraseña:');
+  if(p === PASSWORD){
+    editMode = true;
+    document.getElementById('editorStatus').textContent = 'Modo edición';
+    updateEditModeUI();
+  }
+}
+
+function openTab(e,id){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* JUGADORES */
+function addPlayer(){
+  if(!editMode) return;
+
+  if(!nombre.value || !apellido.value || !curso.value) return;
+
+  players.push({
+    id:Date.now(),
+    nombre:nombre.value,
+    apellido:apellido.value,
+    curso:curso.value
+  });
+
+  nombre.value = apellido.value = curso.value = '';
+
+  saveData();
+  updateAll();
+}
+
+function deletePlayer(id){
+  if(!editMode) return;
+
+  players = players.filter(p=>p.id!==id);
+  matches = matches.filter(m=>m.jugador1.id!==id && m.jugador2.id!==id);
+
+  saveData();
+  updateAll();
+}
+
+function editPlayer(id){
+  if(!editMode) return;
+
+  const p = players.find(x=>x.id===id);
+
+  const n = prompt('Nombre',p.nombre);
+  const a = prompt('Apellido',p.apellido);
+  const c = prompt('Curso',p.curso);
+
+  if(n && a && c){
+    p.nombre=n;
+    p.apellido=a;
+    p.curso=c;
+  }
+
+  saveData();
+  updateAll();
+}
+
+function updatePlayers(){
+  playersTable.innerHTML='';
+
+  players.forEach(p=>{
+    playersTable.innerHTML+=`
+    <tr>
+      <td>${p.nombre}</td>
+      <td>${p.apellido}</td>
+      <td>${p.curso}</td>
+      <td class="edit-only">
+        <button onclick="editPlayer(${p.id})">✏️</button>
+        <button onclick="deletePlayer(${p.id})">🗑️</button>
+      </td>
+    </tr>`;
+  });
+
+  updateEditModeUI(); // 🔥 CLAVE
+}
+
+/* PARTIDAS */
+function updateSelectors(){
+  jugador1.innerHTML='';
+  jugador2.innerHTML='';
+  ganador.innerHTML='<option value="empate">Empate</option>';
+
+  players.forEach(p=>{
+    jugador1.innerHTML+=`<option value="${p.id}">${p.nombre}</option>`;
+    jugador2.innerHTML+=`<option value="${p.id}">${p.nombre}</option>`;
+    ganador.innerHTML+=`<option value="${p.id}">${p.nombre}</option>`;
+  });
+}
+
+function addMatch(){
+  if(!editMode) return;
+
+  const j1 = players.find(p=>p.id==jugador1.value);
+  const j2 = players.find(p=>p.id==jugador2.value);
+
+  if(!j1 || !j2 || j1.id===j2.id) return;
+
+  let resultado='';
+
+  if(ganador.value==='empate'){
+    resultado='Empate';
+  } else {
+    const g = players.find(p=>p.id==ganador.value);
+    resultado=g.nombre;
+  }
+
+  matches.push({jugador1:j1, jugador2:j2, resultado});
+
+  saveData();
+  updateAll();
+}
+
+function updateMatches(){
+  matchesTable.innerHTML='';
+  matches.forEach(m=>{
+    matchesTable.innerHTML+=`
+    <tr>
+      <td>${m.jugador1.nombre}</td>
+      <td>${m.jugador2.nombre}</td>
+      <td>${m.resultado}</td>
+    </tr>`;
+  });
+}
+
+/* CLASIFICACIÓN PRO */
+function updateRanking(){
+  rankingTable.innerHTML='';
+
+  if(players.length===0) return;
+
+  let puntos = {};
+  players.forEach(p=>puntos[p.id]=0);
+
+  matches.forEach(m=>{
+    if(m.resultado==='Empate'){
+      puntos[m.jugador1.id]+=0.5;
+      puntos[m.jugador2.id]+=0.5;
+    } else {
+      if(m.jugador1.nombre===m.resultado){
+        puntos[m.jugador1.id]+=1;
+      } else {
+        puntos[m.jugador2.id]+=1;
+      }
+    }
+  });
+
+  const sorted=[...players].sort((a,b)=>puntos[b.id]-puntos[a.id]);
+
+  let header='<tr><th></th>';
+  sorted.forEach(p=>header+=`<th class="rotate">${p.nombre}</th>`);
+  header+='<th>TOTAL</th></tr>';
+  rankingTable.innerHTML+=header;
+
+  sorted.forEach(p1=>{
+    let row=`<tr><th>${p1.nombre}</th>`;
+
+    sorted.forEach(p2=>{
+      if(p1.id===p2.id){
+        row+='<td class="self">X</td>';
+        return;
+      }
+
+      const match = matches.find(m =>
+        (m.jugador1.id===p1.id && m.jugador2.id===p2.id) ||
+        (m.jugador1.id===p2.id && m.jugador2.id===p1.id)
+      );
+
+      if(!match){
+        row+='<td></td>';
+        return;
+      }
+
+      if(match.resultado==='Empate'){
+        row+='<td class="draw">0.5</td>';
+      }
+      else if(match.resultado===p1.nombre){
+        row+='<td class="win">1</td>';
+      }
+      else{
+        row+='<td class="lose">0</td>';
+      }
+    });
+
+    row+=`<td><b>${puntos[p1.id]}</b></td>`;
+    row+='</tr>';
+
+    rankingTable.innerHTML+=row;
+  });
+}
+
+function updateAll(){
+  updatePlayers();
+  updateSelectors();
+  updateMatches();
+  updateRanking();
+}
+
+document.addEventListener('DOMContentLoaded', updateAll);
+</script>
+
+</body>
+</html>
