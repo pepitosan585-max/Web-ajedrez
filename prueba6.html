@@ -24,7 +24,9 @@ th { background:#222; color:white; }
 .win { background:#4caf50; color:white; }
 .lose { background:#f44336; color:white; }
 .draw { background:#ffc107; }
-.self { background:#2e7d32; color:white; }
+
+/* 🔥 CAMBIO AQUÍ: X en gris */
+.self { background:#9e9e9e; color:white; }
 
 .edit-only { display:none; }
 
@@ -34,6 +36,7 @@ th { background:#222; color:white; }
 .tab-content.active { display:block; }
 
 input, select, button { margin:5px; padding:6px; }
+label { font-weight:bold; margin-right:5px; }
 </style>
 </head>
 
@@ -78,11 +81,20 @@ input, select, button { margin:5px; padding:6px; }
 
 <!-- PARTIDAS -->
 <div id="partidas" class="tab-content">
+
 <div class="edit-only">
+
+<label>Jugador 1:</label>
 <select id="jugador1"></select>
+
+<label>Jugador 2:</label>
 <select id="jugador2"></select>
+
+<label>Ganador:</label>
 <select id="ganador"></select>
-<button onclick="addMatch()">Añadir partida</button>
+
+<button onclick="addMatch()">Registrar partida</button>
+
 </div>
 
 <table>
@@ -110,7 +122,6 @@ function saveData(){
   localStorage.setItem('matches', JSON.stringify(matches));
 }
 
-/* 🔥 MOSTRAR / OCULTAR BOTONES */
 function updateEditModeUI(){
   document.querySelectorAll('.edit-only').forEach(el=>{
     if(editMode){
@@ -203,7 +214,7 @@ function updatePlayers(){
     </tr>`;
   });
 
-  updateEditModeUI(); // 🔥 CLAVE
+  updateEditModeUI();
 }
 
 /* PARTIDAS */
@@ -254,7 +265,7 @@ function updateMatches(){
   });
 }
 
-/* CLASIFICACIÓN PRO */
+/* CLASIFICACIÓN */
 function updateRanking(){
   rankingTable.innerHTML='';
 
